@@ -961,7 +961,7 @@ function fieldItems(kind, path){
       const o = getPath(state, path.replace(/\.elevV$/, ''));
       return o.elevU === 'floor'
         ? numItems(rangeOf(1, 100, 1), v => `Floor ${v}`)
-        : numItems(rangeOf(-100, 300, 1), v => `${signed(v)} ft`);
+        : numItems(rangeOf(-100, 300, 5), v => `${signed(v)} ft`);
     }
     case 'device': return [{v:'monitor', label:'Monitor, hose-fed'}, {v:'deckgun', label:'Deck gun, piped'}];
   }
