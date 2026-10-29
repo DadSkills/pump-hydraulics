@@ -1,0 +1,1254 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Pump discharge pressure, friction loss, tip flow and hydrant calculators for driver/operators.">
+<meta name="theme-color" content="#f4f6f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#151a1e" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Pump Hydraulics">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Pump Operator Hydraulics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" crossorigin href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=IBM+Plex+Mono:wght@400;500&family=Saira+Condensed:wght@500;600;700&display=swap">
+<style>
+/* Layout: header holds the title and two pickers (calculator: sideways wheel; hose lay: up/down wheel).
+   Pump view: sticky PDP readout above the water-flow inputs (pump → supply → appliance → lines);
+   pressure breakdown and worked math beside them on wide screens, below them on phones. */
+:root{
+  --bg:#e7eaed;
+  --panel:#f4f6f7;
+  --raised:#ffffff;
+  --field:#ffffff;
+  --ink:#15191e;
+  --muted:#5b6570;
+  --line:#d3d8de;
+  --line-strong:#aab3bd;
+  --accent:#b3261e;
+  --accent-soft:#f7e2df;
+  --warn:#8a5600;
+  --warn-bg:#fbefd2;
+  --seg-np:#3f5b82;
+  --seg-fl:#b3261e;
+  --seg-al:#8c6a14;
+  --seg-ep:#22746b;
+  --tag-a:#c2410c;
+  --tag-b:#1f4fc4;
+  --tag-s:#2b7a3b;
+  --tag-m:#6a46b0;
+  --on-tag:#ffffff;
+  --band:#eef1f4;
+  --shadow:rgba(21,25,30,.16);  --font-display:"Saira Condensed","Arial Narrow","Roboto Condensed",sans-serif;
+  --font-body:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0e1114; --panel:#151a1e; --raised:#1b2025; --field:#11151a;
+    --ink:#e6e9ec; --muted:#9aa4ae; --line:#283038; --line-strong:#3d4650;
+    --accent:#f0604f; --accent-soft:#3a1915; --warn:#f2bb55; --warn-bg:#2b2109;
+    --seg-np:#7f9cc6; --seg-fl:#f0604f; --seg-al:#d4b05a; --seg-ep:#4dbaa9;
+    --tag-a:#f08a4b; --tag-b:#7199f7; --tag-s:#64bf76; --tag-m:#b296f2; --on-tag:#0e1114;
+    --band:#232a31; --shadow:rgba(0,0,0,.55);    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0e1114; --panel:#151a1e; --raised:#1b2025; --field:#11151a;
+  --ink:#e6e9ec; --muted:#9aa4ae; --line:#283038; --line-strong:#3d4650;
+  --accent:#f0604f; --accent-soft:#3a1915; --warn:#f2bb55; --warn-bg:#2b2109;
+  --seg-np:#7f9cc6; --seg-fl:#f0604f; --seg-al:#d4b05a; --seg-ep:#4dbaa9;
+  --tag-a:#f08a4b; --tag-b:#7199f7; --tag-s:#64bf76; --tag-m:#b296f2; --on-tag:#0e1114;
+  --band:#232a31; --shadow:rgba(0,0,0,.55);  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top, 0px);z-index:10;background:var(--bg)}
+h1,h2,h3{margin:0}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button{font:inherit;color:inherit}
+
+.wrap{max-width:1160px;margin:0 auto;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px))}
+
+/* Header */
+.top{background:var(--panel);border-bottom:1px solid var(--line)}
+.top .wrap{padding-block:14px;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px 24px}
+.brand{display:flex;justify-content:center;flex:1 1 100%;min-width:0;text-align:center}
+h1{font-family:var(--font-display);font-weight:700;font-size:20px;line-height:1.1;letter-spacing:.02em;text-wrap:balance}
+.pickers{display:flex;align-items:center;justify-content:center;gap:10px;flex:1 1 360px;min-width:0;max-width:660px}
+
+/* Sideways wheel (calculator picker) */
+.hw-box{--col:140px;position:relative;flex:1 1 0;min-width:0;max-width:320px;height:48px;border:1px solid var(--line-strong);border-radius:8px;background:var(--field);overflow:hidden}
+.hw-box::before{content:"";position:absolute;top:5px;bottom:5px;left:calc(50% - var(--col) / 2 + 3px);width:calc(var(--col) - 6px);border-radius:6px;background:var(--band);border:1px solid var(--line);pointer-events:none}
+.hw-box:focus-within{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.hwheel{position:relative;display:flex;height:100%;overflow-x:scroll;overflow-y:hidden;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;scrollbar-width:none;outline:none;
+  -webkit-mask-image:linear-gradient(to right,rgba(0,0,0,.3),#000 32%,#000 68%,rgba(0,0,0,.3));
+  mask-image:linear-gradient(to right,rgba(0,0,0,.3),#000 32%,#000 68%,rgba(0,0,0,.3))}
+.hwheel::-webkit-scrollbar{display:none}
+.hw-spacer{flex:0 0 calc(50% - var(--col) / 2)}
+.hw-box.lay{--col:136px}
+.hwheel .wheel-row{flex:0 0 var(--col);height:100%;line-height:46px;padding:0 4px;font-family:var(--font-display);font-weight:600;font-size:16.5px;letter-spacing:.01em;text-transform:none}
+
+/* Up/down wheels */
+.wheel-box{--row:34px;position:relative;border:1px solid var(--line-strong);border-radius:8px;background:var(--field);overflow:hidden;min-width:0}
+.wheel-box::before{content:"";position:absolute;left:4px;right:4px;top:var(--row);height:var(--row);border-radius:6px;background:var(--band);border:1px solid var(--line);pointer-events:none}
+.wheel-box:focus-within{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.wheel{position:relative;height:calc(var(--row) * 3);overflow-y:scroll;scroll-snap-type:y mandatory;overscroll-behavior:contain;scrollbar-width:none;outline:none;
+  -webkit-mask-image:linear-gradient(to bottom,rgba(0,0,0,.28),#000 36%,#000 64%,rgba(0,0,0,.28));
+  mask-image:linear-gradient(to bottom,rgba(0,0,0,.28),#000 36%,#000 64%,rgba(0,0,0,.28))}
+.wheel::-webkit-scrollbar{display:none}
+.wheel-list{padding-block:var(--row)}
+.wheel-row{display:block;height:var(--row);line-height:var(--row);text-align:center;padding:0 8px;scroll-snap-align:center;font-family:var(--font-body);font-size:15.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;user-select:none;-webkit-user-select:none;font-variant-numeric:tabular-nums;backface-visibility:hidden}
+.wheel-row.on{color:var(--ink);font-weight:700}
+.wheel.caps .wheel-row{font-family:var(--font-display);font-weight:600;font-size:15.5px;letter-spacing:.05em;text-transform:uppercase}
+
+main .wrap{padding-block:18px 40px}
+
+/* Pump pressure view */
+.pdp-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,400px);gap:22px;align-items:start}
+.pager-tabs{display:none}
+@media (max-width:899px){
+  .pager-tabs{display:flex;align-items:flex-end;gap:18px;margin:0 0 12px;border-bottom:1px solid var(--line)}
+  .pager-tabs button{appearance:none;border:0;background:none;padding:6px 0 8px;margin-bottom:-1px;font:600 14.5px/1 var(--font-display);letter-spacing:.07em;text-transform:uppercase;color:var(--muted);border-bottom:3px solid transparent;cursor:pointer}
+  .pager-tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+  .swipe-hint{margin-left:auto;padding-bottom:8px;font-size:12.5px;color:var(--muted);white-space:nowrap}
+  .pdp-grid{display:flex;gap:16px;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;scrollbar-width:none;align-items:flex-start}
+  .pdp-grid::-webkit-scrollbar{display:none}
+  .pdp-grid > .page{flex:0 0 100%;scroll-snap-align:start;scroll-snap-stop:always}
+}
+.inputs{display:flex;flex-direction:column;min-width:0}
+
+.pdp-bar{position:sticky;top:calc(env(safe-area-inset-top, 0px) + 8px);z-index:6;display:flex;align-items:center;justify-content:space-between;gap:4px 18px;flex-wrap:wrap;background:var(--raised);border:1px solid var(--line-strong);border-radius:10px;padding:8px 16px 10px;box-shadow:0 8px 18px -12px var(--shadow);margin-bottom:12px}
+.k{font:600 12.5px/1.2 var(--font-display);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.big{display:flex;align-items:baseline;font:700 clamp(46px,11vw,64px)/.95 var(--font-display);font-variant-numeric:tabular-nums;letter-spacing:-.01em;white-space:nowrap;color:var(--accent)}
+.big{flex:none}
+.pdp-main{flex:1 1 auto;min-width:0}
+.pdp-row{display:flex;align-items:center;gap:6px 16px;min-width:0}
+.mini-break{flex:1 1 auto;min-width:0;max-width:300px}
+.mini-break .bar{margin-top:0;height:8px}
+.mlegend{display:grid;grid-template-columns:1fr 1fr;gap:0 12px;margin-top:4px;font:500 12px/1.25 var(--font-mono);font-variant-numeric:tabular-nums}
+.mlegend div{display:flex;align-items:center;gap:5px;min-width:0;white-space:nowrap}
+.mlegend .sw{width:8px;height:8px}
+.mlegend span{color:var(--muted);font-family:var(--font-display);font-weight:600;letter-spacing:.05em}
+.mlegend b{margin-left:auto;font-weight:500}
+.result .notes{margin-top:0;margin-bottom:4px}
+.result .notes:empty + .work-h{margin-top:0}
+.big small{font-size:.34em;font-weight:600;color:var(--muted);margin-left:5px;letter-spacing:.06em}
+.pdp-side{text-align:right;min-width:0}
+.flowline{font:500 15px/1.3 var(--font-mono);font-variant-numeric:tabular-nums}
+.roundnote{color:var(--muted);font-size:13px}
+@media (max-width:420px){.pdp-side{text-align:left}}
+
+/* Flow path: cards joined by a "hose" running down the left */
+.flowpath{display:flex;flex-direction:column}
+.joint{position:relative;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:9px 0 9px 14px;min-height:42px}
+.joint::before{content:"";position:absolute;left:31px;top:0;bottom:0;width:3px;border-radius:2px;background:var(--line-strong)}
+.joint.first::before{top:50%}
+.fitting{position:relative;z-index:1;display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:999px;background:var(--panel);border:1px solid var(--line-strong);font:600 13px/1 var(--font-display);letter-spacing:.07em;text-transform:uppercase;color:var(--ink);white-space:nowrap}
+.fitting.pump{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.joint-note{color:var(--muted);font-size:14px;font-variant-numeric:tabular-nums}
+.joint.slim{min-height:12px;padding:0}
+.prerow{margin:0 0 12px}
+.prerow .field{max-width:340px}
+
+.line-card{container-type:inline-size;background:var(--raised);border:1px solid var(--line);border-radius:10px;padding:14px 16px 16px}
+.line-head{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.tag{--tag:var(--tag-a);display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:24px;padding:0 8px;border-radius:4px;background:var(--tag);color:var(--on-tag);font:700 13px/1 var(--font-display);letter-spacing:.08em;text-transform:uppercase}
+.tag.a{--tag:var(--tag-a)} .tag.b{--tag:var(--tag-b)} .tag.s{--tag:var(--tag-s)} .tag.m{--tag:var(--tag-m)}
+.line-title{font-family:var(--font-body);font-size:16px;font-weight:700}
+.line-flow{margin-left:auto;font:500 13px/1 var(--font-mono);color:var(--muted);font-variant-numeric:tabular-nums}
+
+.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 14px}
+@container (min-width:560px){.fields{grid-template-columns:repeat(4,minmax(0,1fr))}.field.s2w{grid-column:span 2}}
+.field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.field.s2{grid-column:span 2}
+.field > label,.lbl{font:600 12.5px/1.2 var(--font-display);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+input,select{font:16px/1.2 var(--font-body);color:var(--ink);background:var(--field);border:1px solid var(--line-strong);border-radius:6px;padding:9px 10px;min-height:44px;width:100%;min-width:0}
+input[type=number]{font-variant-numeric:tabular-nums}
+input:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+.with-unit{display:flex;gap:6px;min-width:0}
+.with-unit input,.with-unit .wheel-box{flex:1 1 auto}
+.unit-toggle{display:flex;flex:none;border:1px solid var(--line-strong);border-radius:6px;overflow:hidden;background:var(--field)}
+.unit-toggle button{appearance:none;border:0;background:none;min-height:42px;padding:0 11px;font:600 14px/1 var(--font-display);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);cursor:pointer}
+.unit-toggle button + button{border-left:1px solid var(--line)}
+.unit-toggle button[aria-checked="true"]{background:var(--ink);color:var(--bg)}
+.unit-toggle.vert{flex-direction:column}
+.unit-toggle.vert button{flex:1 1 0;min-height:0}
+.unit-toggle.vert button + button{border-left:0;border-top:1px solid var(--line)}
+.fhint{margin:0;color:var(--muted);font-size:13px}
+
+/* Breakdown and math */
+.result{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;min-width:0}
+.bar{display:flex;height:12px;border-radius:3px;overflow:hidden;background:var(--line);margin-top:10px}
+.bar span{display:block;height:100%}
+.legend{display:grid;grid-template-columns:1fr 1fr;gap:6px 18px;margin-top:10px;font-size:14px}
+.legend div{display:flex;align-items:center;gap:8px;min-width:0}
+.sw{width:10px;height:10px;border-radius:2px;flex:none}
+.legend b{margin-left:auto;font-family:var(--font-mono);font-weight:500;font-size:13.5px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.notes{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.notes:empty{display:none}
+.note{padding:9px 12px;border-radius:8px;font-size:14px;background:var(--raised);border:1px solid var(--line)}
+.note.warn{background:var(--warn-bg);border-color:transparent}
+.note.warn strong{color:var(--warn)}
+.work-h{margin-top:18px;margin-bottom:6px;font:700 15px/1.2 var(--font-display);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.work-h.first{margin-top:0}
+.steps{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}
+.step{display:grid;grid-template-columns:22px minmax(0,1fr) auto;column-gap:10px;row-gap:1px;padding:8px 0;border-bottom:1px solid var(--line);align-items:baseline}
+.step .t{grid-column:1;grid-row:1 / span 2;align-self:start;padding-top:1px}
+.mini{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:3px;background:var(--tag);color:var(--on-tag);font:700 12px/1 var(--font-display)}
+.mini.a{--tag:var(--tag-a)} .mini.b{--tag:var(--tag-b)} .mini.s{--tag:var(--tag-s)} .mini.m{--tag:var(--tag-m)}
+.step .l{grid-column:2;font-weight:700;font-size:14px;line-height:1.35}
+.step .v{grid-column:3;font:500 14px/1.35 var(--font-mono);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.step .m{grid-column:2 / 4;font:400 13px/1.4 var(--font-mono);color:var(--muted);overflow-wrap:anywhere}
+.step.total{border-top:2px solid var(--ink);border-bottom:0;padding-top:10px}
+.step.total .l,.step.total .v{color:var(--accent);font-size:15px}
+
+/* Quick calcs, hydrant, coefficients */
+.qgrid{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-items:start}
+@media (min-width:760px){.qgrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.qcard{container-type:inline-size;background:var(--raised);border:1px solid var(--line);border-radius:10px;padding:16px;min-width:0}
+.qcard h2{font:700 21px/1.1 var(--font-display);letter-spacing:.02em}
+.qsub{margin:3px 0 12px;color:var(--muted);font-size:14px}
+.qres{display:flex;align-items:baseline;gap:6px;margin-top:14px}
+.qbig{font:700 44px/1 var(--font-display);font-variant-numeric:tabular-nums}
+.qunit{font:600 15px/1 var(--font-display);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.qmath{font:400 13px/1.45 var(--font-mono);color:var(--muted);margin-top:4px;overflow-wrap:anywhere}
+.qverdict{margin-top:6px;font-weight:700}
+.tbl-wrap{overflow-x:auto;margin-top:14px}
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl caption{text-align:left;font:600 12.5px/1.2 var(--font-display);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding-bottom:6px}
+.tbl th{text-align:left;font:600 12.5px/1.2 var(--font-display);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--line-strong)}
+.tbl td{padding:6px 8px;border-bottom:1px solid var(--line);font-family:var(--font-mono);font-size:13.5px;font-variant-numeric:tabular-nums}
+.tbl th.r,.tbl td.r{text-align:right}
+.tbl tr.hl td{background:var(--accent-soft);color:var(--ink);font-weight:500}
+.tbl td.txt{font-family:var(--font-body);font-size:14px}
+.scale{position:relative;margin-top:18px;padding-bottom:22px}
+.scale-track{display:flex;height:14px;border-radius:3px;overflow:hidden}
+.scale-track span{display:block;height:100%}
+.scale-tick{position:absolute;top:18px;transform:translateX(-50%);font:500 12px/1 var(--font-mono);color:var(--muted)}
+.scale-tick.end{transform:translateX(-100%)}
+.scale-tick.start{transform:none}
+.scale-mark{position:absolute;top:-5px;width:4px;height:24px;margin-left:-2px;border-radius:2px;background:var(--ink);box-shadow:0 0 0 2px var(--raised)}
+.split{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-items:start}
+@media (min-width:860px){.split{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+.stack{display:flex;flex-direction:column;gap:16px;min-width:0}
+.coef-in{width:110px;min-height:38px;padding:6px 8px;font-size:15px}
+.tbl tr.changed td:first-child::after{content:" · changed";color:var(--accent);font-family:var(--font-display);font-weight:600;font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+.btn{appearance:none;border:1px solid var(--line-strong);background:var(--field);border-radius:6px;min-height:42px;padding:0 14px;font:600 14px/1 var(--font-display);letter-spacing:.07em;text-transform:uppercase;cursor:pointer}
+.btn:hover{border-color:var(--ink)}
+.btn.armed{background:var(--accent);border-color:var(--accent);color:var(--raised)}
+.ref{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:7px;font-size:14.5px;max-width:65ch}
+.ref code{font-family:var(--font-mono);font-size:13px}
+.muted{color:var(--muted)}
+
+.foot{margin-top:30px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:13px;max-width:80ch}
+.foot p{margin:0 0 6px}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="brand"><h1>Pump Operator Hydraulics</h1></div>
+    <div class="pickers">
+      <div class="hw-box lay" id="layoutPick"><div class="hwheel" id="layoutWheel" tabindex="0" role="spinbutton" aria-label="Hose lay"></div></div>
+      <div class="hw-box"><div class="hwheel" id="viewWheel" tabindex="0" role="spinbutton" aria-label="Calculator"></div></div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+
+    <!-- PUMP PRESSURE -->
+    <section class="view" id="view-pressure" aria-label="Pump pressure">
+      <div class="pdp-bar" aria-live="polite">
+        <div class="pdp-main">
+          <div class="k">Pump discharge pressure</div>
+          <div class="pdp-row">
+            <div class="big"><span id="pdpOut">—</span><small>psi</small></div>
+            <div class="mini-break" aria-label="Pressure breakdown">
+              <div class="bar" id="bar" aria-hidden="true"></div>
+              <div class="mlegend" id="legend"></div>
+            </div>
+          </div>
+        </div>
+        <div class="pdp-side">
+          <div class="flowline" id="flowOut"></div>
+          <div class="roundnote" id="roundNote"></div>
+        </div>
+      </div>
+      <div class="pager-tabs" id="pagerTabs" role="tablist" aria-label="Pump pressure pages">
+        <button type="button" role="tab" data-page="0" aria-selected="true" aria-controls="page-entries">Entries</button>
+        <button type="button" role="tab" data-page="1" aria-selected="false" aria-controls="result">Breakdown</button>
+        <span class="swipe-hint" id="swipeHint">Swipe for breakdown</span>
+      </div>
+      <div class="pdp-grid" id="pager">
+        <div class="inputs page" id="page-entries">
+          <div id="flowpaths"></div>
+        </div>
+
+        <aside class="result page" id="result">
+          <div class="notes" id="notes"></div>
+          <h2 class="work-h">The math</h2>
+          <ol class="steps" id="steps"></ol>
+        </aside>
+      </div>
+    </section>
+
+    <!-- QUICK CALCS -->
+    <section class="view" id="view-quick" aria-label="Quick calcs" hidden>
+      <div class="qgrid">
+        <article class="qcard">
+          <h2>Friction loss</h2>
+          <p class="qsub">FL = C × Q² × L, with Q in hundreds of gpm and L in hundreds of feet.</p>
+          <div class="fields">
+            <div class="field s2"><label for="q-fl-hose">Hose</label><select id="q-fl-hose" data-bind="quick:fl.hose" data-hoses="all"></select></div>
+            <div class="field"><label for="q-fl-gpm">Flow (gpm)</label><input id="q-fl-gpm" type="number" inputmode="decimal" min="0" step="5" data-bind="quick:fl.gpm"></div>
+            <div class="field"><label for="q-fl-len">Length (ft)</label><input id="q-fl-len" type="number" inputmode="decimal" min="0" step="50" data-bind="quick:fl.length"></div>
+          </div>
+          <div class="qres"><span class="qbig" id="qFlOut">—</span><span class="qunit">psi</span></div>
+          <div class="qmath" id="qFlMath"></div>
+          <div class="tbl-wrap"><table class="tbl" id="qFlTable"></table></div>
+        </article>
+
+        <article class="qcard">
+          <h2>Preconnect pump chart</h2>
+          <p class="qsub">Pump pressure by line length for one hose and nozzle, on level ground.</p>
+          <div class="fields">
+            <div class="field s2"><label for="q-ch-hose">Hose</label><select id="q-ch-hose" data-bind="quick:chart.hose" data-hoses="single"></select></div>
+            <div class="field"><label for="q-ch-gpm">Flow (gpm)</label><input id="q-ch-gpm" type="number" inputmode="decimal" min="0" step="5" data-bind="quick:chart.gpm"></div>
+            <div class="field"><label for="q-ch-np">Nozzle pressure (psi)</label><input id="q-ch-np" type="number" inputmode="decimal" min="0" step="5" data-bind="quick:chart.np"></div>
+          </div>
+          <div class="tbl-wrap"><table class="tbl" id="qChTable"></table></div>
+        </article>
+
+        <article class="qcard">
+          <h2>Smooth bore tip flow</h2>
+          <p class="qsub">GPM = 29.7 × d² × √NP, with d the tip diameter in inches.</p>
+          <div class="fields">
+            <div class="field"><label for="q-tip-tip">Tip size</label><select id="q-tip-tip" data-bind="quick:tip.tip" data-tips="all"></select></div>
+            <div class="field"><label for="q-tip-np">Nozzle pressure (psi)</label><input id="q-tip-np" type="number" inputmode="decimal" min="0" step="5" data-bind="quick:tip.np"></div>
+          </div>
+          <div class="qres"><span class="qbig" id="qTipOut">—</span><span class="qunit">gpm</span></div>
+          <div class="qmath" id="qTipMath"></div>
+        </article>
+
+        <article class="qcard">
+          <h2>Elevation pressure</h2>
+          <p class="qsub">0.5 psi per foot of height, or 5 psi per floor above the first.</p>
+          <div class="fields">
+            <div class="field s2"><label for="q-el-v">Nozzle elevation</label>
+              <div class="with-unit">
+                <input id="q-el-v" type="number" inputmode="decimal" step="1" data-bind="quick:elev.elevV">
+                <div class="unit-toggle" role="radiogroup" aria-label="Elevation unit">
+                  <button type="button" role="radio" data-unit-for="quick:elev" data-unit="ft">ft</button>
+                  <button type="button" role="radio" data-unit-for="quick:elev" data-unit="floor">floor</button>
+                </div>
+              </div>
+              <p class="fhint" id="q-el-hint"></p>
+            </div>
+          </div>
+          <div class="qres"><span class="qbig" id="qElOut">—</span><span class="qunit">psi</span></div>
+          <div class="qmath" id="qElMath"></div>
+        </article>
+      </div>
+    </section>
+
+    <!-- HYDRANT -->
+    <section class="view" id="view-hydrant" aria-label="Hydrant" hidden>
+      <div class="split">
+        <article class="qcard">
+          <h2>Additional water from a hydrant</h2>
+          <p class="qsub">Percentage method. Read static pressure before you flow, then residual pressure while flowing.</p>
+          <div class="fields">
+            <div class="field"><label for="h-static">Static (psi)</label><input id="h-static" type="number" inputmode="decimal" min="0" step="1" data-bind="hyd:static"></div>
+            <div class="field"><label for="h-res">Residual (psi)</label><input id="h-res" type="number" inputmode="decimal" min="0" step="1" data-bind="hyd:residual"></div>
+            <div class="field s2"><label for="h-flow">Flow you're pulling now (gpm)</label><input id="h-flow" type="number" inputmode="decimal" min="0" step="50" data-bind="hyd:flow"></div>
+          </div>
+        </article>
+        <article class="qcard" aria-live="polite">
+          <div class="k">Drop from static to residual</div>
+          <div class="qres" style="margin-top:4px"><span class="qbig" id="hDrop">—</span><span class="qunit">%</span></div>
+          <div class="qmath" id="hMath"></div>
+          <div class="qverdict" id="hVerdict"></div>
+          <div class="scale" id="hScale" aria-hidden="true"></div>
+          <div class="tbl-wrap" style="margin-top:4px"><table class="tbl" id="hTable"></table></div>
+        </article>
+      </div>
+    </section>
+
+    <!-- COEFFICIENTS -->
+    <section class="view" id="view-coefficients" aria-label="Coefficients" hidden>
+      <div class="split">
+        <article class="qcard">
+          <h2>Friction loss coefficients</h2>
+          <p class="qsub">Standard values from the driver/operator curriculum. If your department flow-tested its hose or trains with different numbers, change them here. Every calculator on this page uses these values.</p>
+          <div class="tbl-wrap"><table class="tbl" id="coefTable"></table></div>
+        </article>
+        <div class="stack">
+          <article class="qcard">
+            <h2>Rules</h2>
+            <p class="qsub">Appliance, elevation and rounding rules.</p>
+            <div class="fields">
+              <div class="field"><label for="r-wyeT">Appliance threshold (gpm)</label><input id="r-wyeT" type="number" inputmode="decimal" min="0" step="10" data-bind="rules:wyeThreshold"></div>
+              <div class="field"><label for="r-wyeL">Appliance loss at or above it (psi)</label><input id="r-wyeL" type="number" inputmode="decimal" min="0" step="1" data-bind="rules:wyeLoss"></div>
+              <div class="field"><label for="r-master">Master stream device (psi)</label><input id="r-master" type="number" inputmode="decimal" min="0" step="1" data-bind="rules:masterLoss"></div>
+              <div class="field"><label for="r-sp">Standpipe system (psi)</label><input id="r-sp" type="number" inputmode="decimal" min="0" step="1" data-bind="rules:standpipeLoss"></div>
+              <div class="field"><label for="r-epft">Elevation per foot (psi)</label><input id="r-epft" type="number" inputmode="decimal" min="0" step="0.05" data-bind="rules:epFt"></div>
+              <div class="field"><label for="r-epfl">Elevation per floor (psi)</label><input id="r-epfl" type="number" inputmode="decimal" min="0" step="0.5" data-bind="rules:epFloor"></div>
+              <div class="field s2"><label for="r-round">Round pump pressure</label>
+                <select id="r-round" data-bind="rules:rounding">
+                  <option value="nearest1">To the nearest psi</option>
+                  <option value="nearest5">To the nearest 5 psi</option>
+                  <option value="up5">Up to the next 5 psi</option>
+                </select>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px">
+              <button type="button" class="btn" id="resetAll">Restore standard values</button>
+              <span class="muted" style="font-size:13px">Your changes are saved in this browser only.</span>
+            </div>
+          </article>
+          <article class="qcard">
+            <h2>How the numbers are built</h2>
+            <ul class="ref" style="margin-top:10px">
+              <li><b>Pump discharge pressure</b> = NP + TPL, where total pressure loss (TPL) = friction loss + appliance loss + elevation pressure.</li>
+              <li><b>Friction loss</b>: <code>FL = C × Q² × L</code>. Q is flow in hundreds of gpm and L is length in hundreds of feet.</li>
+              <li><b>Smooth bore flow</b>: <code>GPM = 29.7 × d² × √NP</code>, rounded to the whole gallon before friction loss is figured.</li>
+              <li><b>Nozzle pressure</b>: fog 100 psi (low-pressure fog 75 or 50), smooth bore handline 50, smooth bore master stream 80.</li>
+              <li><b>Appliances</b>: 0 psi under 350 gpm, 10 psi at 350 gpm or more. Master stream devices 25 psi at any flow. Standpipe systems 25 psi.</li>
+              <li><b>Elevation</b>: 0.5 psi per foot, or 5 psi per floor above the first. Nozzles below the pump give a negative value.</li>
+              <li><b>Wyed lines</b>: pump to the line that needs the most pressure and gate the others down at the wye.</li>
+              <li><b>Siamesed lines</b> of equal length: use the siamese coefficient with the total flow.</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <footer class="foot">
+      <p>Training and preplanning aid. Coefficients and rules are the standard values taught in driver/operator courses. Your department's pump charts, SOPs and the hose and pump ratings take precedence.</p>
+      <p>NFPA 1002 was consolidated into NFPA 1010 (2024 edition); the pumper driver/operator requirements are in chapters 11 and 12.</p>
+    </footer>
+  </div>
+</main>
+
+<script>
+(() => {
+'use strict';
+
+/* ---------- Reference data ---------- */
+const HOSES = [
+  {id:'b075', label:'¾″ booster', s:'¾″ booster', c:1100, g:'single'},
+  {id:'b100', label:'1″ booster', s:'1″ booster', c:150, g:'single'},
+  {id:'h150', label:'1½″', s:'1½″', c:24, g:'single'},
+  {id:'h175', label:'1¾″ (1½″ couplings)', s:'1¾″', c:15.5, g:'single'},
+  {id:'h200', label:'2″', s:'2″', c:8, g:'single'},
+  {id:'h250', label:'2½″', s:'2½″', c:2, g:'single'},
+  {id:'h300a', label:'3″ (2½″ couplings)', s:'3″ · 2½″ cplg', c:0.8, g:'single'},
+  {id:'h300b', label:'3″ (3″ couplings)', s:'3″ · 3″ cplg', c:0.677, g:'single'},
+  {id:'h400', label:'4″', s:'4″', c:0.2, g:'single'},
+  {id:'h450', label:'4½″', s:'4½″', c:0.1, g:'single'},
+  {id:'h500', label:'5″', s:'5″', c:0.08, g:'single'},
+  {id:'h600', label:'6″', s:'6″', c:0.05, g:'single'},
+  {id:'s2x250', label:'Two 2½″, siamesed', s:'2 × 2½″ siamese', c:0.5, g:'siamese'},
+  {id:'s3x250', label:'Three 2½″, siamesed', s:'3 × 2½″ siamese', c:0.22, g:'siamese'},
+  {id:'s2x300', label:'Two 3″ (2½″ couplings), siamesed', s:'2 × 3″ siamese', c:0.2, g:'siamese'},
+  {id:'s250x300', label:'One 2½″ + one 3″ (2½″ couplings), siamesed', s:'2½″ + 3″ siamese', c:0.3, g:'siamese'}
+];
+const HOSE = Object.fromEntries(HOSES.map(h => [h.id, h]));
+
+const NOZ = {
+  fog100:{w:'Fog 100 psi', short:'Fog nozzle', np:100, kind:'fog'},
+  fog75:{w:'Fog 75 psi', short:'Low-pressure fog', np:75, kind:'fog'},
+  fog50:{w:'Fog 50 psi', short:'Low-pressure fog', np:50, kind:'fog'},
+  sb50:{w:'Smooth bore 50', short:'Smooth bore', np:50, kind:'sb'},
+  sb80:{w:'Smooth bore 80', short:'Smooth bore', np:80, kind:'sb'},
+  fogm:{w:'Fog 100 psi', short:'Master fog nozzle', np:100, kind:'fog'},
+  custom:{w:'Other', short:'Nozzle', kind:'custom'}
+};
+const HAND_NOZ = ['fog100','fog75','fog50','sb50','custom'];
+const MASTER_NOZ = ['sb80','fogm','custom'];
+const TIP_LABEL = {'0.875':'⅞″','0.9375':'15/16″','1':'1″','1.125':'1⅛″','1.25':'1¼″','1.375':'1⅜″','1.5':'1½″','1.75':'1¾″','2':'2″'};
+const HAND_TIPS = ['0.875','0.9375','1','1.125','1.25'];
+const MASTER_TIPS = ['1.25','1.375','1.5','1.75','2'];
+const ALL_TIPS = ['0.875','0.9375','1','1.125','1.25','1.375','1.5','1.75','2'];
+
+const LAYOUTS = [{v:'single', label:'Single line'}, {v:'wye', label:'Wyed lines'}, {v:'master', label:'Master stream'}, {v:'standpipe', label:'Standpipe'}];
+const VIEWS = [{v:'pressure', label:'Pump pressure'}, {v:'quick', label:'Quick calcs'}, {v:'hydrant', label:'Hydrant'}, {v:'coefficients', label:'Coefficients'}];
+const VIEW_IDS = VIEWS.map(x => x.v);
+
+const DEFAULT_RULES = {wyeThreshold:350, wyeLoss:10, masterLoss:25, standpipeLoss:25, epFt:0.5, epFloor:5, rounding:'nearest1'};
+const DEFAULT_COEFFS = Object.fromEntries(HOSES.map(h => [h.id, h.c]));
+
+const line = (o) => Object.assign({nozzle:'fog100', gpm:150, tip:'1', np:100, hose:'h175', length:200, elevV:0, elevU:'ft'}, o);
+const DEFAULT_STATE = {
+  layout:'single',
+  single:{a:line({})},
+  wye:{supply:{hose:'h250', length:300}, a:line({length:150}), b:line({gpm:125, length:100, elevV:10})},
+  master:{device:'monitor', supply:{hose:'s2x250', length:200}, a:line({nozzle:'sb80', tip:'1.25', np:80, gpm:400, hose:'h250', length:0})},
+  standpipe:{supply:{hose:'s2x300', length:100}, a:line({nozzle:'sb50', tip:'1.125', np:50, gpm:250, hose:'h250', length:150, elevV:6, elevU:'floor'})}
+};
+const DEFAULT_QUICK = {
+  fl:{hose:'h175', gpm:150, length:200},
+  chart:{hose:'h175', gpm:150, np:100},
+  tip:{tip:'1', np:50},
+  elev:{elevV:30, elevU:'ft'}
+};
+const DEFAULT_HYD = {static:80, residual:70, flow:500};
+
+/* ---------- State ---------- */
+const clone = (o) => JSON.parse(JSON.stringify(o));
+function deepMerge(def, src){
+  if (!src || typeof src !== 'object') return clone(def);
+  const out = {};
+  for (const k of Object.keys(def)){
+    const d = def[k], s = src[k];
+    if (d && typeof d === 'object') out[k] = deepMerge(d, s);
+    else out[k] = (s === undefined || s === null) ? d : s;
+  }
+  return out;
+}
+const KEY = 'pump-operator-hydraulics-v1';
+let saved = null;
+try { const raw = localStorage.getItem(KEY); if (raw) saved = JSON.parse(raw); } catch (e) { saved = null; }
+const state = deepMerge(DEFAULT_STATE, saved && saved.state);
+const quick = deepMerge(DEFAULT_QUICK, saved && saved.quick);
+const hyd = deepMerge(DEFAULT_HYD, saved && saved.hyd);
+const settings = {
+  rules: deepMerge(DEFAULT_RULES, saved && saved.settings && saved.settings.rules),
+  coeffs: deepMerge(DEFAULT_COEFFS, saved && saved.settings && saved.settings.coeffs)
+};
+let view = (saved && VIEW_IDS.includes(saved.view)) ? saved.view : 'pressure';
+if (!LAYOUTS.some(l => l.v === state.layout)) state.layout = 'single';
+
+let saveTimer = null;
+function save(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try { localStorage.setItem(KEY, JSON.stringify({state, quick, hyd, settings, view})); } catch (e) { /* storage unavailable */ }
+  }, 250);
+}
+
+/* ---------- Helpers ---------- */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const roots = () => ({state, quick, hyd, rules:settings.rules, coef:settings.coeffs});
+const getPath = (o, p) => p.split('.').reduce((a, k) => a == null ? undefined : a[k], o);
+function setPath(o, p, v){ const ks = p.split('.'); const last = ks.pop(); ks.reduce((a, k) => a[k], o)[last] = v; }
+const num = (v) => (v === '' || v === null || v === undefined) ? NaN : Number(v);
+function rule(k){ const v = num(settings.rules[k]); return Number.isFinite(v) ? v : DEFAULT_RULES[k]; }
+function coef(id){ const v = num(settings.coeffs[id]); return (Number.isFinite(v) && v >= 0) ? v : HOSE[id].c; }
+const clean = (v) => Object.is(v, -0) ? 0 : v;
+const f1 = (v) => clean(Math.round(v * 10) / 10).toFixed(1);
+const f2 = (v) => clean(Math.round(v * 100) / 100).toFixed(2);
+const fg = (v) => String(clean(Math.round(v * 1000) / 1000));
+const fi = (v) => Math.round(v).toLocaleString('en-US');
+function sumExpr(vals){
+  return vals.map((v, i) => {
+    const s = f1(Math.abs(v));
+    if (i === 0) return (v < 0 ? '−' : '') + s;
+    return (v < 0 ? ' − ' : ' + ') + s;
+  }).join('');
+}
+function roundPDP(v){
+  const m = settings.rules.rounding;
+  if (m === 'nearest5') return Math.round(v / 5) * 5;
+  if (m === 'up5') return Math.ceil(v / 5 - 1e-9) * 5;
+  return Math.round(v);
+}
+const ROUND_NOTE = {nearest1:'Rounded to the nearest psi', nearest5:'Rounded to the nearest 5 psi', up5:'Rounded up to the next 5 psi'};
+const esc = (s) => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ---------- Hydraulics engine ---------- */
+function frictionLoss(c, q, l){ return c * Math.pow(q / 100, 2) * (l / 100); }
+function tipFlow(d, np){ return Math.round(29.7 * d * d * Math.sqrt(np)); }
+
+function elevCalc(b){
+  let v = num(b.elevV); if (!Number.isFinite(v)) v = 0;
+  if (b.elevU === 'floor'){
+    const fl = Math.max(1, Math.round(v));
+    const per = rule('epFloor');
+    return {p: per * (fl - 1), math: `${fg(per)} × (${fl} − 1) floors`};
+  }
+  const per = rule('epFt');
+  return {p: per * v, math: `${fg(per)} × ${fg(v)} ft`};
+}
+function nozzleOf(b){
+  const n = NOZ[b.nozzle] || NOZ.fog100;
+  if (n.kind === 'sb'){ const d = Number(b.tip); return {n, np:n.np, q:tipFlow(d, n.np), d}; }
+  if (n.kind === 'custom') return {n, np:num(b.np), q:num(b.gpm)};
+  return {n, np:n.np, q:num(b.gpm)};
+}
+function lineCalc(b, tag, name, withHose){
+  const steps = [], errs = [];
+  const z = nozzleOf(b);
+  if (z.n.kind === 'sb'){
+    steps.push({tag, label:`Tip flow · ${TIP_LABEL[b.tip] || b.tip + '″'} smooth bore`, math:`29.7 × ${fg(z.d)}² × √${fg(z.np)}`, value:`${fi(z.q)} gpm`});
+  }
+  if (!(z.q > 0)) errs.push(`Enter a flow for ${name}.`);
+  if (!(z.np > 0)) errs.push(`Enter a nozzle pressure for ${name}.`);
+  steps.push({tag, label:'Nozzle pressure', math: z.n.kind === 'sb' ? `${z.n.short} nozzle` : `${z.n.short} flowing ${fi(z.q || 0)} gpm`, value:z.np});
+  let fl = 0;
+  if (withHose){
+    const L = num(b.length);
+    if (!(L >= 0)) errs.push(`Enter a hose length for ${name}.`);
+    const c = coef(b.hose);
+    fl = frictionLoss(c, z.q, L);
+    steps.push({tag, label:`Friction loss · ${fi(L || 0)} ft of ${HOSE[b.hose].label}`, math:`${fg(c)} × ${f2(z.q / 100)}² × ${f2(L / 100)}`, value:fl});
+  }
+  const e = elevCalc(b);
+  steps.push({tag, label:'Elevation pressure', math:e.math, value:e.p});
+  return {np:z.np, q:z.q, fl, ep:e.p, p:z.np + fl + e.p, steps, errs};
+}
+function supplyCalc(sup, q, tag){
+  const L = num(sup.length), c = coef(sup.hose);
+  const fl = frictionLoss(c, q, L);
+  return {fl, err: (L >= 0) ? null : 'Enter a supply line length.',
+    step:{tag, label:`Friction loss · ${fi(L || 0)} ft of ${HOSE[sup.hose].label}`, math:`${fg(c)} × ${f2(q / 100)}² × ${f2(L / 100)}`, value:fl}};
+}
+function calc(){
+  const L = state.layout, s = state[L];
+  const r = {steps:[], notes:[], errs:[], flow:NaN, raw:NaN, comp:{np:0, fl:0, al:0, ep:0}, joint:''};
+
+  if (L === 'single'){
+    const a = lineCalc(s.a, 'a', 'the attack line', true);
+    r.steps.push(...a.steps); r.errs.push(...a.errs);
+    r.flow = a.q; r.raw = a.p;
+    r.comp = {np:a.np, fl:a.fl, al:0, ep:a.ep};
+    r.steps.push({total:true, label:'Pump discharge pressure', math:`NP + FL + EP = ${sumExpr([a.np, a.fl, a.ep])}`, value:a.p});
+  }
+
+  if (L === 'wye'){
+    const a = lineCalc(s.a, 'a', 'Line A', true);
+    const b = lineCalc(s.b, 'b', 'Line B', true);
+    r.errs.push(...a.errs, ...b.errs);
+    r.steps.push(...a.steps, {tag:'a', label:'Line A needs at the wye', math:sumExpr([a.np, a.fl, a.ep]), value:a.p});
+    r.steps.push(...b.steps, {tag:'b', label:'Line B needs at the wye', math:sumExpr([b.np, b.fl, b.ep]), value:b.p});
+    const Q = a.q + b.q;
+    const thr = rule('wyeThreshold');
+    const wl = Q >= thr ? rule('wyeLoss') : 0;
+    r.steps.push({label:'Total flow through the wye', math:`${fi(a.q || 0)} + ${fi(b.q || 0)}`, value:`${fi(Q || 0)} gpm`});
+    r.steps.push({label:'Wye appliance loss', math: Q >= thr ? `${fi(Q)} gpm is ${fi(thr)} gpm or more` : `${fi(Q || 0)} gpm is under ${fi(thr)} gpm`, value:wl});
+    const sp = supplyCalc(s.supply, Q, 's');
+    if (sp.err) r.errs.push(sp.err);
+    r.steps.push(sp.step);
+    const hiA = a.p >= b.p, hi = hiA ? a : b, lo = hiA ? b : a;
+    const hiN = hiA ? 'A' : 'B', loN = hiA ? 'B' : 'A';
+    r.flow = Q; r.raw = hi.p + wl + sp.fl;
+    r.comp = {np:hi.np, fl:hi.fl + sp.fl, al:wl, ep:hi.ep};
+    r.steps.push({total:true, label:'Pump discharge pressure', math:`Line ${hiN} + wye + supply = ${sumExpr([hi.p, wl, sp.fl])}`, value:r.raw});
+    const diff = hi.p - lo.p;
+    if (Number.isFinite(diff)){
+      r.notes.push(diff >= 0.5
+        ? {type:'info', html:`<strong>Pump to Line ${hiN}.</strong> Line ${loN} needs ${f1(lo.p)} psi at the wye, so gate it down about ${fi(diff)} psi.`}
+        : {type:'info', html:`Both lines need about the same pressure at the wye.`});
+    }
+    r.joint = `${fg(wl)} psi · ${fi(Q || 0)} gpm through it`;
+  }
+
+  if (L === 'master'){
+    const a = lineCalc(s.a, 'm', 'the master stream', false);
+    r.errs.push(...a.errs);
+    const ml = rule('masterLoss');
+    r.steps.push(...a.steps, {label:'Master stream appliance', math:'Same allowance at any flow', value:ml});
+    let fls = 0;
+    if (s.device === 'monitor'){
+      const sp = supplyCalc(s.supply, a.q, 's');
+      if (sp.err) r.errs.push(sp.err);
+      r.steps.push(sp.step); fls = sp.fl;
+    }
+    r.flow = a.q; r.raw = a.np + ml + fls + a.ep;
+    r.comp = {np:a.np, fl:fls, al:ml, ep:a.ep};
+    r.steps.push({total:true, label:'Pump discharge pressure',
+      math: s.device === 'monitor' ? `NP + device + FL + EP = ${sumExpr([a.np, ml, fls, a.ep])}` : `NP + device + EP = ${sumExpr([a.np, ml, a.ep])}`,
+      value:r.raw});
+    r.joint = `${fg(ml)} psi at any flow`;
+  }
+
+  if (L === 'standpipe'){
+    const a = lineCalc(s.a, 'a', 'the attack line', true);
+    r.errs.push(...a.errs);
+    const spl = rule('standpipeLoss');
+    r.steps.push(...a.steps, {label:'Standpipe system', math:'Allowance for the riser and fittings', value:spl});
+    const sp = supplyCalc(s.supply, a.q, 's');
+    if (sp.err) r.errs.push(sp.err);
+    r.steps.push(sp.step);
+    r.flow = a.q; r.raw = a.np + a.fl + a.ep + spl + sp.fl;
+    r.comp = {np:a.np, fl:a.fl + sp.fl, al:spl, ep:a.ep};
+    r.steps.push({total:true, label:'Pump discharge pressure', math:`NP + FL + EP + standpipe + FL to FDC = ${sumExpr([a.np, a.fl, a.ep, spl, sp.fl])}`, value:r.raw});
+    r.joint = `${fg(spl)} psi allowance`;
+  }
+
+  r.ok = !r.errs.length && Number.isFinite(r.raw);
+  r.pdp = r.ok ? roundPDP(r.raw) : NaN;
+  if (r.ok && r.raw > 250){
+    r.notes.push({type:'warn', html:`<strong>Over 250 psi.</strong> Check this against the rated pressure of your hose and pump. A shorter lay, larger hose or another supply line brings it down.`});
+  }
+  if (r.ok && r.raw < 0){
+    r.notes.push({type:'warn', html:`<strong>Below zero.</strong> The nozzle is far enough below the pump that elevation alone supplies the pressure. Check the elevation entry.`});
+  }
+  return r;
+}
+
+/* ---------- Building the inputs ---------- */
+function hoseOptions(scope){
+  const opt = (h) => `<option value="${h.id}">${esc(h.label)} · C ${fg(coef(h.id))}</option>`;
+  const single = HOSES.filter(h => h.g === 'single').map(opt).join('');
+  if (scope === 'single') return single;
+  const siam = HOSES.filter(h => h.g === 'siamese').map(opt).join('');
+  return `<optgroup label="Single lines">${single}</optgroup><optgroup label="Siamesed lines, equal length">${siam}</optgroup>`;
+}
+function fillHoseSelects(){ $$('select[data-hoses]').forEach(sel => { sel.innerHTML = hoseOptions(sel.dataset.hoses); }); }
+function refreshHoseLabels(){
+  $$('select[data-hoses]').forEach(sel => { const val = sel.value; sel.innerHTML = hoseOptions(sel.dataset.hoses); sel.value = val; });
+}
+
+function wheelBox(id, path, kind){
+  return `<div class="wheel-box"><div class="wheel" id="${id}" tabindex="0" role="spinbutton" aria-labelledby="${id}-lbl" data-wheel="${path}" data-kind="${kind}"><div class="wheel-list"></div></div></div>`;
+}
+function wheelField(id, path, kind, label, cls = '', attrs = ''){
+  return `<div class="field ${cls}" ${attrs}><span class="lbl" id="${id}-lbl">${label}</span>${wheelBox(id, path, kind)}</div>`;
+}
+function lineCard(layout, key, o){
+  const p = `${layout}-${key}`, path = `${layout}.${key}`;
+  return `<article class="line-card" id="card-${p}">
+    <header class="line-head"><span class="tag ${o.cls}">${o.tag}</span><h3 class="line-title">${o.title}</h3><span class="line-flow" id="${p}-flow"></span></header>
+    <div class="fields">
+      ${wheelField(`${p}-nozzle`, `${path}.nozzle`, o.master ? 'nozMaster' : 'nozHand', 'Nozzle')}
+      ${o.hose ? wheelField(`${p}-hose`, `${path}.hose`, 'hoseSingle', 'Hose') : ''}
+      ${wheelField(`${p}-tip`, `${path}.tip`, o.master ? 'tipMaster' : 'tipHand', 'Tip size', '', 'data-show="tip"')}
+      ${wheelField(`${p}-np`, `${path}.np`, 'np', 'Nozzle pressure (psi)', '', 'data-show="np"')}
+      ${wheelField(`${p}-gpm`, `${path}.gpm`, o.master ? 'flowMaster' : 'flowHand', 'Flow (gpm)', '', 'data-show="flow"')}
+      ${o.hose ? wheelField(`${p}-len`, `${path}.length`, 'lenAttack', 'Length (ft)') : ''}
+      <div class="field s2"><span class="lbl" id="${p}-elev-lbl">Nozzle elevation</span>
+        <div class="with-unit">
+          ${wheelBox(`${p}-elev`, `${path}.elevV`, 'elev')}
+          <div class="unit-toggle vert" role="radiogroup" aria-label="Elevation unit">
+            <button type="button" role="radio" data-unit-for="state:${path}" data-unit="ft">ft</button>
+            <button type="button" role="radio" data-unit-for="state:${path}" data-unit="floor">floor</button>
+          </div>
+        </div>
+        <p class="fhint" id="${p}-ehint"></p>
+      </div>
+    </div>
+  </article>`;
+}
+function supplyCard(layout, title){
+  const p = `${layout}-supply`, path = `${layout}.supply`;
+  return `<article class="line-card" id="card-${p}">
+    <header class="line-head"><span class="tag s">S</span><h3 class="line-title">${title}</h3><span class="line-flow" id="${p}-flow"></span></header>
+    <div class="fields">
+      ${wheelField(`${p}-hose`, `${path}.hose`, 'hoseAll', 'Hose', 's2w')}
+      ${wheelField(`${p}-len`, `${path}.length`, 'lenSupply', 'Length (ft)', 's2w')}
+    </div>
+  </article>`;
+}
+const pumpJoint = () => '';
+const applianceJoint = (layout, name) => `<div class="joint"><span class="fitting" id="${layout}-jointname">${name}</span><span class="joint-note" id="${layout}-joint"></span></div>`;
+const slim = () => `<div class="joint slim"></div>`;
+
+function buildFlowpaths(){
+  $('#flowpaths').innerHTML =
+    `<div class="flowpath" data-layout="single">${pumpJoint()}${lineCard('single','a',{tag:'A', cls:'a', title:'Attack line', hose:true})}</div>` +
+    `<div class="flowpath" data-layout="wye">${pumpJoint()}${supplyCard('wye','Supply line to the wye')}${applianceJoint('wye','Gated wye')}` +
+      `${lineCard('wye','a',{tag:'A', cls:'a', title:'Line A', hose:true})}${slim()}` +
+      `${lineCard('wye','b',{tag:'B', cls:'b', title:'Line B', hose:true})}</div>` +
+    `<div class="flowpath" data-layout="master">` +
+      `<div class="prerow">${wheelField('master-device', 'master.device', 'device', 'Master stream device')}</div>` +
+      `${pumpJoint()}<div id="master-supplywrap">${supplyCard('master','Supply lines to the monitor')}</div>${applianceJoint('master','Master stream appliance')}` +
+      `${lineCard('master','a',{tag:'M', cls:'m', title:'Master stream nozzle', master:true, hose:false})}</div>` +
+    `<div class="flowpath" data-layout="standpipe">${pumpJoint()}${supplyCard('standpipe','Supply to the FDC')}${applianceJoint('standpipe','Standpipe system')}` +
+      `${lineCard('standpipe','a',{tag:'A', cls:'a', title:'Attack line from the outlet', hose:true})}</div>`;
+}
+function buildStaticSelects(){
+  $$('select[data-tips="all"]').forEach(sel => { sel.innerHTML = ALL_TIPS.map(t => `<option value="${t}">${TIP_LABEL[t]}</option>`).join(''); });
+}
+function buildCoefTable(){
+  $('#coefTable').innerHTML = `<thead><tr><th>Hose</th><th>C</th><th class="r">Standard</th></tr></thead><tbody>` +
+    HOSES.map(h => `<tr id="coefrow-${h.id}"><td class="txt">${esc(h.label)}</td><td><input class="coef-in" id="coef-${h.id}" type="number" inputmode="decimal" min="0" step="any" aria-label="Coefficient for ${esc(h.label)}" data-bind="coef:${h.id}"></td><td class="r">${fg(h.c)}</td></tr>`).join('') +
+    `</tbody>`;
+}
+
+/* ---------- Sync & visibility ---------- */
+function syncInputs(){
+  const R = roots();
+  $$('[data-bind]').forEach(el => {
+    const [r, p] = el.dataset.bind.split(':');
+    const v = getPath(R[r], p);
+    const sv = (v === undefined || v === null || (typeof v === 'number' && !Number.isFinite(v))) ? '' : String(v);
+    if (el.value !== sv) el.value = sv;
+  });
+  $$('[data-unit-for]').forEach(btn => {
+    const [r, p] = btn.dataset.unitFor.split(':');
+    const obj = getPath(R[r], p);
+    btn.setAttribute('aria-checked', String(!!obj && obj.elevU === btn.dataset.unit));
+  });
+}
+function updateCards(){
+  for (const L of ['single','wye','master','standpipe']){
+    for (const k of ['a','b']){
+      const card = $(`#card-${L}-${k}`); if (!card) continue;
+      const b = state[L][k];
+      const kind = (NOZ[b.nozzle] || NOZ.fog100).kind;
+      card.querySelector('[data-show="tip"]').hidden = kind !== 'sb';
+      card.querySelector('[data-show="np"]').hidden = kind !== 'custom';
+      card.querySelector('[data-show="flow"]').hidden = kind === 'sb';
+      $(`#${L}-${k}-ehint`).textContent = b.elevU === 'floor'
+        ? 'Floor the nozzle is on. Floor 1 is street level.'
+        : 'Height of the nozzle above the pump. Below the pump is negative.';
+    }
+  }
+  $$('#flowpaths .lbl[id$="-hose-lbl"]').forEach(lbl => {
+    const v = getPath(state, $('#' + lbl.id.replace(/-lbl$/, '')).dataset.wheel);
+    lbl.textContent = `Hose · C ${fg(coef(v))}`;
+  });
+  $('#master-supplywrap').hidden = state.master.device !== 'monitor';
+  $('#master-jointname').textContent = state.master.device === 'monitor' ? 'Master stream appliance' : 'Deck gun piping and appliance';
+  $('#q-el-hint').textContent = quick.elev.elevU === 'floor' ? 'Floor the nozzle is on. Floor 1 is street level.' : 'Height of the nozzle above the pump.';
+}
+function setLayout(L){
+  state.layout = L;
+  $$('#flowpaths .flowpath').forEach(fp => { fp.hidden = fp.dataset.layout !== L; });
+}
+
+/* ---------- Rendering ---------- */
+function renderPressure(){
+  const r = calc();
+  const ok = r.ok;
+  $('#pdpOut').textContent = ok ? fi(r.pdp) : '—';
+  $('#flowOut').textContent = ok ? `${fi(r.flow)} gpm flowing` : 'Check the entries';
+  $('#roundNote').textContent = ok ? `${ROUND_NOTE[settings.rules.rounding] || ROUND_NOTE.nearest1} (${f1(r.raw)} exact)` : '';
+
+  const parts = [
+    {k:'np', ab:'NP', label:'Nozzle pressure', color:'var(--seg-np)'},
+    {k:'fl', ab:'FL', label:'Friction loss', color:'var(--seg-fl)'},
+    {k:'al', ab:'AL', label:'Appliance loss', color:'var(--seg-al)'},
+    {k:'ep', ab:'EP', label:'Elevation pressure', color:'var(--seg-ep)'}
+  ];
+  const pos = parts.map(p => Math.max(0, ok ? r.comp[p.k] : 0));
+  const tot = pos.reduce((a, b) => a + b, 0);
+  $('#bar').innerHTML = tot > 0 ? parts.map((p, i) => pos[i] > 0 ? `<span style="width:${(pos[i] / tot * 100).toFixed(2)}%;background:${p.color}"></span>` : '').join('') : '';
+  $('#legend').innerHTML = parts.map(p => `<div title="${p.label}" aria-label="${p.label} ${ok ? f1(r.comp[p.k]) : ''} psi"><i class="sw" style="background:${p.color}"></i><span>${p.ab}</span><b>${ok ? f1(r.comp[p.k]) : '—'}</b></div>`).join('');
+
+  const notes = r.errs.map(e => ({type:'warn', html:`<strong>Missing value.</strong> ${esc(e)}`})).concat(r.notes);
+  $('#notes').innerHTML = notes.map(n => `<div class="note ${n.type}">${n.html}</div>`).join('');
+
+  $('#steps').innerHTML = r.steps.map(st => {
+    const v = typeof st.value === 'number' ? (Number.isFinite(st.value) ? `${f1(st.value)} psi` : '—') : st.value;
+    const t = st.tag ? `<span class="mini ${st.tag}">${st.tag.toUpperCase()}</span>` : '';
+    return `<li class="step${st.total ? ' total' : ''}"><span class="t">${t}</span><span class="l">${esc(st.label)}</span><span class="v">${esc(v)}</span><span class="m">${esc(st.math)}</span></li>`;
+  }).join('');
+
+  const L = state.layout;
+  const jn = $(`#${L}-joint`); if (jn) jn.textContent = r.joint;
+  for (const k of ['a','b']){
+    const el = $(`#${L}-${k}-flow`); if (!el) continue;
+    const z = nozzleOf(state[L][k]);
+    el.textContent = z.q > 0 ? `${fi(z.q)} gpm @ ${fg(z.np)} psi` : '';
+  }
+  const sf = $(`#${L}-supply-flow`); if (sf) sf.textContent = ok ? `${fi(r.flow)} gpm` : '';
+}
+
+function flowRange(c){
+  if (c >= 500) return [10,15,20,25,30,40];
+  if (c >= 100) return [20,30,40,50,60];
+  if (c >= 8) return [75,100,125,150,175,200];
+  if (c >= 1) return [150,200,250,300,350,400];
+  if (c >= 0.15) return [250,300,400,500,600,750];
+  return [500,750,1000,1250,1500];
+}
+function renderQuick(){
+  const f = quick.fl, c = coef(f.hose), q = num(f.gpm), L = num(f.length);
+  if (q >= 0 && L >= 0){
+    const v = frictionLoss(c, q, L);
+    $('#qFlOut').textContent = f1(v);
+    $('#qFlMath').textContent = `${fg(c)} × ${f2(q / 100)}² × ${f2(L / 100)} = ${f1(v)} psi`;
+  } else { $('#qFlOut').textContent = '—'; $('#qFlMath').textContent = 'Enter a flow and a length.'; }
+  const flows = flowRange(c);
+  $('#qFlTable').innerHTML = `<caption>Per 100 ft of ${esc(HOSE[f.hose].label)}</caption><thead><tr><th>Flow</th><th class="r">Friction loss</th></tr></thead><tbody>` +
+    flows.map(g => `<tr${g === q ? ' class="hl"' : ''}><td>${fi(g)} gpm</td><td class="r">${f1(frictionLoss(c, g, 100))} psi</td></tr>`).join('') + `</tbody>`;
+
+  const ch = quick.chart, c2 = coef(ch.hose), q2 = num(ch.gpm), np2 = num(ch.np);
+  if (q2 > 0 && np2 > 0){
+    const lens = [50,100,150,200,250,300,350,400];
+    $('#qChTable').innerHTML = `<caption>${fi(q2)} gpm at ${fg(np2)} psi on ${esc(HOSE[ch.hose].label)}</caption><thead><tr><th>Length</th><th class="r">Friction loss</th><th class="r">Pump to</th></tr></thead><tbody>` +
+      lens.map(l => { const fl = frictionLoss(c2, q2, l); return `<tr><td>${l} ft</td><td class="r">${f1(fl)} psi</td><td class="r"><b>${fi(roundPDP(np2 + fl))}</b> psi</td></tr>`; }).join('') + `</tbody>`;
+  } else {
+    $('#qChTable').innerHTML = `<caption>Enter a flow and a nozzle pressure.</caption>`;
+  }
+
+  const d = Number(quick.tip.tip), np = num(quick.tip.np);
+  if (np > 0){
+    const g = tipFlow(d, np);
+    $('#qTipOut').textContent = fi(g);
+    $('#qTipMath').textContent = `29.7 × ${fg(d)}² × √${fg(np)} = ${fi(g)} gpm`;
+  } else { $('#qTipOut').textContent = '—'; $('#qTipMath').textContent = 'Enter a nozzle pressure.'; }
+
+  const e = elevCalc(quick.elev);
+  $('#qElOut').textContent = f1(e.p);
+  $('#qElMath').textContent = `${e.math} = ${f1(e.p)} psi`;
+}
+
+const TIERS = [
+  {max:10, k:3, range:'0–10%', text:'3 more lines of the same flow'},
+  {max:15, k:2, range:'11–15%', text:'2 more lines of the same flow'},
+  {max:25, k:1, range:'16–25%', text:'1 more line of the same flow'},
+  {max:Infinity, k:0, range:'Over 25%', text:'More may be available, but less than you are flowing now'}
+];
+function renderHydrant(){
+  const S = num(hyd.static), R = num(hyd.residual), Q = num(hyd.flow);
+  const ok = S > 0 && R >= 0 && R <= S;
+  let tier = null, drop = NaN;
+  if (ok){
+    drop = (S - R) / S * 100;
+    tier = TIERS.find(t => drop <= t.max + 1e-9);
+    $('#hDrop').textContent = f1(drop);
+    $('#hMath').textContent = `(${fg(S)} − ${fg(R)}) ÷ ${fg(S)} × 100 = ${f1(drop)}%`;
+    const more = Q > 0 && tier.k > 0 ? ` That is about ${fi(tier.k * Q)} gpm more.` : '';
+    $('#hVerdict').textContent = tier.k > 0 ? `Enough for about ${tier.text}.${more}` : `${tier.text}.`;
+  } else {
+    $('#hDrop').textContent = '—';
+    $('#hMath').textContent = '';
+    $('#hVerdict').textContent = (S > 0 && R > S) ? 'Residual pressure should be lower than static. Check the readings.' : 'Enter static and residual pressure.';
+  }
+  const MAXS = 40;
+  const zones = [[0,10,'var(--seg-ep)'],[10,15,'var(--seg-np)'],[15,25,'var(--seg-al)'],[25,40,'var(--seg-fl)']];
+  const pct = (v) => (v / MAXS * 100);
+  let s = `<div class="scale-track">${zones.map(z => `<span style="width:${pct(z[1] - z[0])}%;background:${z[2]};opacity:.85"></span>`).join('')}</div>`;
+  [0,10,15,25,40].forEach(v => { s += `<span class="scale-tick${v === 0 ? ' start' : v === 40 ? ' end' : ''}" style="left:${pct(v)}%">${v === 40 ? '40%+' : v + '%'}</span>`; });
+  if (ok) s += `<span class="scale-mark" style="left:${Math.min(pct(drop), 100)}%"></span>`;
+  $('#hScale').innerHTML = s;
+  $('#hTable').innerHTML = `<thead><tr><th>Drop</th><th>Additional water available</th></tr></thead><tbody>` +
+    TIERS.map(t => `<tr${tier === t ? ' class="hl"' : ''}><td>${t.range}</td><td class="txt">${t.k > 0 ? (t.k + '× the current flow') : 'Less than the current flow'}</td></tr>`).join('') + `</tbody>`;
+}
+function renderCoefMarks(){
+  HOSES.forEach(h => {
+    const row = $(`#coefrow-${h.id}`);
+    if (row) row.classList.toggle('changed', num(settings.coeffs[h.id]) !== h.c);
+  });
+}
+function renderAll(){ renderPressure(); renderQuick(); renderHydrant(); renderCoefMarks(); }
+
+/* ---------- Scroll wheels (up/down and sideways) ---------- */
+const ROW = 34;
+const WHEELS = [];
+function rangeOf(a, b, step){ const out = []; for (let k = 0; a + k * step <= b + 1e-9; k++) out.push(Math.round((a + k * step) * 1000) / 1000); return out; }
+const numItems = (vals, fmt) => vals.map(v => ({v, label: fmt ? fmt(v) : String(v)}));
+const signed = (v) => v < 0 ? `−${Math.abs(v)}` : String(v);
+const reduceMotion = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+function fieldItems(kind, path){
+  switch (kind){
+    case 'nozHand': return HAND_NOZ.map(id => ({v:id, label:NOZ[id].w}));
+    case 'nozMaster': return MASTER_NOZ.map(id => ({v:id, label:NOZ[id].w}));
+    case 'hoseSingle': return HOSES.filter(h => h.g === 'single').map(h => ({v:h.id, label:h.s}));
+    case 'hoseAll': return HOSES.map(h => ({v:h.id, label:h.s}));
+    case 'tipHand': return HAND_TIPS.map(t => ({v:t, label:TIP_LABEL[t]}));
+    case 'tipMaster': return MASTER_TIPS.map(t => ({v:t, label:TIP_LABEL[t]}));
+    case 'flowHand': return numItems(rangeOf(5, 500, 5));
+    case 'flowMaster': return numItems(rangeOf(100, 2000, 25), fi);
+    case 'np': return numItems(rangeOf(5, 250, 5));
+    case 'lenAttack': return numItems(rangeOf(0, 1000, 25));
+    case 'lenSupply': return numItems(rangeOf(0, 3000, 50), fi);
+    case 'elev': {
+      const o = getPath(state, path.replace(/\.elevV$/, ''));
+      return o.elevU === 'floor'
+        ? numItems(rangeOf(1, 100, 1), v => `Floor ${v}`)
+        : numItems(rangeOf(-100, 300, 1), v => `${signed(v)} ft`);
+    }
+    case 'device': return [{v:'monitor', label:'Monitor, hose-fed'}, {v:'deckgun', label:'Deck gun, piped'}];
+  }
+  return [{v:'', label:'—'}];
+}
+const wSize = (w) => w.axis === 'x' ? w.size : ROW;
+const wScroll = (w) => w.axis === 'x' ? w.el.scrollLeft : w.el.scrollTop;
+const wExtent = (w) => w.axis === 'x' ? w.el.clientWidth : w.el.clientHeight;
+function setScroll(w, px){ if (w.axis === 'x') w.el.scrollLeft = px; else w.el.scrollTop = px; }
+
+function indexFor(w, v){
+  const i = w.items.findIndex(it => it.v === v);
+  if (i >= 0) return i;
+  const n = Number(v);
+  if (typeof w.items[0].v === 'number' && v !== '' && Number.isFinite(n)){
+    let best = 0, bd = Infinity;
+    w.items.forEach((it, j) => { const d = Math.abs(it.v - n); if (d < bd){ bd = d; best = j; } });
+    return best;
+  }
+  return 0;
+}
+function buildWheelRows(w){
+  w.items = w.itemsFn();
+  const rows = w.items.map((it, j) => `<div class="wheel-row" data-i="${j}">${esc(it.label)}</div>`).join('');
+  if (w.axis === 'x') w.el.innerHTML = `<div class="hw-spacer" aria-hidden="true"></div>${rows}<div class="hw-spacer" aria-hidden="true"></div>`;
+  else w.el.querySelector('.wheel-list').innerHTML = rows;
+  w.rows = $$('.wheel-row', w.el);
+  w.painted = new Set();
+  const cur = w.get();
+  const i = indexFor(w, cur);
+  if (w.normalize && w.items[i].v !== cur) w.set(w.items[i].v);
+  w.idx = i;
+}
+function paintWheel(w){
+  const pos = wScroll(w) / wSize(w);
+  const c = Math.max(0, Math.min(w.rows.length - 1, Math.round(pos)));
+  const lo = Math.max(0, c - 3), hi = Math.min(w.rows.length - 1, c + 3);
+  for (const j of w.painted){
+    if (j < lo || j > hi){ const r = w.rows[j]; r.style.transform = ''; r.classList.remove('on'); w.painted.delete(j); }
+  }
+  for (let j = lo; j <= hi; j++){
+    const r = w.rows[j], off = j - pos;
+    r.style.transform = w.axis === 'x'
+      ? `perspective(320px) rotateY(${(off * 34).toFixed(1)}deg)`
+      : `perspective(240px) rotateX(${(-off * 26).toFixed(1)}deg)`;
+    r.classList.toggle('on', j === c);
+    w.painted.add(j);
+  }
+  if (w.items[c]) w.el.setAttribute('aria-valuetext', w.items[c].label);
+  return c;
+}
+function positionWheel(w){
+  if (!wExtent(w)) return;                    // hidden right now; positioned when shown
+  const i = indexFor(w, w.get());
+  w.idx = i;
+  if (Math.abs(wScroll(w) - i * wSize(w)) > 1) setScroll(w, i * wSize(w));
+  paintWheel(w);
+}
+function positionWheels(scope, except){
+  WHEELS.forEach(w => { if (w !== except && (!scope || scope.contains(w.el))) positionWheel(w); });
+}
+function goTo(w, i, smooth){
+  i = Math.max(0, Math.min(w.items.length - 1, i));
+  const px = i * wSize(w), behavior = smooth && !reduceMotion() ? 'smooth' : 'auto';
+  w.el.scrollTo(w.axis === 'x' ? {left:px, behavior} : {top:px, behavior});
+}
+function onWheelScroll(w){
+  const c = paintWheel(w);
+  if (c === w.idx) return;
+  w.idx = c;
+  const v = w.items[c].v;
+  if (w.get() === v) return;
+  w.set(v);
+  w.after(w);
+}
+function createWheel(el, cfg){
+  const w = Object.assign({el, axis:'y', idx:0, acc:0, raf:0, target:null, tAt:0, normalize:false, after(){}}, cfg);
+  buildWheelRows(w);
+  el.addEventListener('scroll', () => {
+    if (w.raf) return;
+    w.raf = requestAnimationFrame(() => { w.raf = 0; onWheelScroll(w); });
+  }, {passive:true});
+  el.addEventListener('wheel', (e) => {
+    const horiz = Math.abs(e.deltaX) > Math.abs(e.deltaY);
+    if ((w.axis === 'x') !== horiz) return;    // the other direction scrolls the page
+    const raw = horiz ? e.deltaX : e.deltaY;
+    const px = e.deltaMode === 1 ? raw * ROW : e.deltaMode === 2 ? raw * ROW * 3 : raw;
+    const dir = Math.sign(px);
+    const now = performance.now();
+    const cur = (w.target !== null && now - w.tAt < 400) ? w.target : Math.round(wScroll(w) / wSize(w));
+    if (!dir || (dir < 0 && cur <= 0) || (dir > 0 && cur >= w.items.length - 1)) return;
+    e.preventDefault();
+    let steps = 0, smooth = true;
+    if (Math.abs(px) >= 50){ steps = dir; w.acc = 0; }                                   // mouse wheel: one step per notch
+    else { smooth = false; w.acc += px; if (Math.abs(w.acc) >= 22){ steps = Math.trunc(w.acc / 22); w.acc -= steps * 22; } } // trackpad
+    if (!steps) return;
+    w.target = Math.max(0, Math.min(w.items.length - 1, cur + steps)); w.tAt = now;
+    goTo(w, w.target, smooth);
+  }, {passive:false});
+  el.addEventListener('pointerdown', () => { w.target = null; });
+  el.addEventListener('click', (e) => {
+    const r = e.target.closest('.wheel-row');
+    if (r) goTo(w, Number(r.dataset.i), true);
+  });
+  el.addEventListener('keydown', (e) => {
+    const keys = w.axis === 'x' ? {ArrowLeft:-1, ArrowRight:1} : {ArrowUp:-1, ArrowDown:1, PageUp:-10, PageDown:10};
+    let t = null;
+    if (keys[e.key]) t = Math.round(wScroll(w) / wSize(w)) + keys[e.key];
+    else if (e.key === 'Home') t = 0;
+    else if (e.key === 'End') t = w.items.length - 1;
+    if (t === null) return;
+    e.preventDefault();
+    goTo(w, t, false);
+  });
+  WHEELS.push(w);
+  return w;
+}
+function afterFieldChange(w){
+  if (w.path.endsWith('.nozzle')){
+    const b = getPath(state, w.path.slice(0, -'.nozzle'.length));
+    const master = w.kind === 'nozMaster';
+    if (!(master ? MASTER_TIPS : HAND_TIPS).includes(b.tip)) b.tip = master ? '1.25' : '1';
+    if (b.nozzle === 'custom' && !(num(b.np) > 0)) b.np = 100;
+    updateCards();
+    positionWheels(w.el.closest('.line-card'), w);
+  } else if (w.path === 'master.device'){
+    updateCards();
+    positionWheels($('#flowpaths .flowpath[data-layout="master"]'), w);
+  } else {
+    updateCards();
+  }
+  renderPressure();
+  save();
+}
+function initWheels(){
+  $$('#flowpaths .wheel').forEach(el => {
+    const path = el.dataset.wheel, kind = el.dataset.kind;
+    createWheel(el, {
+      kind, path, normalize:true,
+      itemsFn: () => fieldItems(kind, path),
+      get: () => getPath(state, path),
+      set: (v) => setPath(state, path, v),
+      after: afterFieldChange
+    });
+  });
+  createWheel($('#layoutWheel'), {
+    axis:'x', size:136,
+    itemsFn: () => LAYOUTS,
+    get: () => state.layout,
+    set: (v) => { state.layout = v; },
+    after: () => { setLayout(state.layout); positionWheels($('#flowpaths')); renderPressure(); save(); }
+  });
+  createWheel($('#viewWheel'), {
+    axis:'x', size:140,
+    itemsFn: () => VIEWS,
+    get: () => view,
+    set: (v) => { view = v; },
+    after: (w) => { showView(view, w); setHash(view); }
+  });
+}
+
+/* ---------- Views ---------- */
+function setHash(v){ try { if (location.hash !== '#' + v) history.replaceState(null, '', '#' + v); } catch (e) { /* hash not available */ } }
+function showView(v, except){
+  if (!VIEW_IDS.includes(v)) v = 'pressure';
+  view = v;
+  VIEW_IDS.forEach(n => { $(`#view-${n}`).hidden = n !== v; });
+  $('#layoutPick').hidden = v !== 'pressure';
+  positionWheels(v === 'pressure' ? null : $('.top'), except);
+  if (v === 'pressure') resetPager();
+  save();
+}
+
+/* ---------- Entries / Breakdown pager (phones) ---------- */
+const pager = $('#pager');
+const narrowMQ = window.matchMedia('(max-width: 899px)');
+let pageIdx = 0, settledIdx = 0, pagerTimer = null;
+const pageStep = () => pager.clientWidth + (parseFloat(getComputedStyle(pager).columnGap) || 0);
+function setPageUI(i){
+  pageIdx = i;
+  $$('#pagerTabs [data-page]').forEach(b => b.setAttribute('aria-selected', String(Number(b.dataset.page) === i)));
+  $('#swipeHint').textContent = i === 0 ? 'Swipe for breakdown' : 'Swipe for entries';
+}
+function fitPager(){
+  // the pager is as tall as the page showing, so the other page leaves no blank space below
+  if (!narrowMQ.matches){ pager.style.height = ''; return; }
+  const page = pager.children[settledIdx];
+  if (page && page.offsetHeight) pager.style.height = page.offsetHeight + 'px';
+}
+function settlePage(){
+  if (pageIdx === settledIdx) return;
+  settledIdx = pageIdx;
+  fitPager();
+  // if the person had scrolled down the other page, bring the top of this one into view
+  const tabsTop = $('#pagerTabs').getBoundingClientRect().top;
+  const want = $('.pdp-bar').getBoundingClientRect().bottom + 6;
+  if (tabsTop < want - 1) window.scrollBy({top: tabsTop - want, behavior: reduceMotion() ? 'auto' : 'smooth'});
+}
+function resetPager(){
+  setPageUI(0); settledIdx = 0;
+  pager.scrollLeft = 0;
+  fitPager();
+}
+pager.addEventListener('scroll', () => {
+  const i = Math.max(0, Math.min(1, Math.round(pager.scrollLeft / pageStep())));
+  if (i !== pageIdx) setPageUI(i);
+  clearTimeout(pagerTimer);
+  pagerTimer = setTimeout(settlePage, 150);
+}, {passive:true});
+$('#pagerTabs').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-page]');
+  if (b) pager.scrollTo({left: Number(b.dataset.page) * pageStep(), behavior: reduceMotion() ? 'auto' : 'smooth'});
+});
+if ('ResizeObserver' in window){
+  const ro = new ResizeObserver(() => fitPager());
+  Array.from(pager.children).forEach(c => ro.observe(c));
+}
+if (narrowMQ.addEventListener) narrowMQ.addEventListener('change', fitPager); else narrowMQ.addListener(fitPager);
+
+/* ---------- Events ---------- */
+function onBind(e){
+  const el = e.target.closest && e.target.closest('[data-bind]');
+  if (!el) return;
+  const [r, p] = el.dataset.bind.split(':');
+  const v = el.type === 'number' ? (el.value === '' ? '' : Number(el.value)) : el.value;
+  setPath(roots()[r], p, v);
+  if (r === 'coef') refreshHoseLabels();
+  updateCards();
+  renderAll();
+  save();
+}
+document.addEventListener('input', onBind);
+document.addEventListener('change', onBind);
+
+let resetArmed = null;
+document.addEventListener('click', (e) => {
+  const ub = e.target.closest('[data-unit-for]');
+  if (ub){
+    const [r, p] = ub.dataset.unitFor.split(':');
+    const obj = getPath(roots()[r], p);
+    const u = ub.dataset.unit;
+    if (obj.elevU !== u){
+      const v = num(obj.elevV);
+      if (Number.isFinite(v)) obj.elevV = u === 'floor' ? Math.max(1, Math.round(v / 10) + 1) : (Math.max(1, Math.round(v)) - 1) * 10;
+      obj.elevU = u;
+      if (r === 'state') WHEELS.filter(w => w.path === `${p}.elevV`).forEach(w => { buildWheelRows(w); positionWheel(w); });
+      syncInputs(); updateCards(); renderAll(); save();
+    }
+    return;
+  }
+  const ra = e.target.closest('#resetAll');
+  if (ra){
+    if (!ra.classList.contains('armed')){
+      ra.classList.add('armed'); ra.textContent = 'Tap again to restore';
+      clearTimeout(resetArmed);
+      resetArmed = setTimeout(() => { ra.classList.remove('armed'); ra.textContent = 'Restore standard values'; }, 4000);
+      return;
+    }
+    clearTimeout(resetArmed);
+    Object.assign(settings.rules, DEFAULT_RULES);
+    Object.assign(settings.coeffs, DEFAULT_COEFFS);
+    ra.classList.remove('armed'); ra.textContent = 'Standard values restored';
+    setTimeout(() => { ra.textContent = 'Restore standard values'; }, 2500);
+    refreshHoseLabels(); syncInputs(); updateCards(); renderAll(); save();
+  }
+});
+window.addEventListener('hashchange', () => { const h = location.hash.slice(1); if (VIEW_IDS.includes(h)) showView(h); });
+
+/* ---------- Init ---------- */
+buildFlowpaths();
+buildStaticSelects();
+buildCoefTable();
+fillHoseSelects();
+initWheels();
+setLayout(state.layout);
+syncInputs();
+updateCards();
+renderAll();
+const h0 = location.hash.slice(1);
+showView(VIEW_IDS.includes(h0) ? h0 : view);
+requestAnimationFrame(() => positionWheels());
+})();
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(() => {}); });
+}
+</script>
+</body>
+</html>
