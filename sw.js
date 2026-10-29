@@ -1,7 +1,7 @@
 /* Pump Operator Hydraulics — offline helper.
    Saves the app on the phone so it opens with no signal.
    The page itself is checked online first (so updates arrive), with the saved copy as the fallback. */
-const VERSION = 'v5';
+const VERSION = 'v6';
 const APP_CACHE = `pump-hydraulics-${VERSION}`;
 const FONT_CACHE = 'pump-hydraulics-fonts';
 const APP_FILES = [

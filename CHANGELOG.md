@@ -2,6 +2,11 @@
 
 All notable changes to Pump Operator Hydraulics are listed here, newest first.
 
+## [1.0.2] - 2026-10-29
+
+### Changed
+- New app icon: the Pump Operator Hydraulics Maltese cross badge
+
 ## [1.0.1] - 2026-10-29
 
 ### Added
