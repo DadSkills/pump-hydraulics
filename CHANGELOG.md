@@ -4,6 +4,9 @@ All notable changes to Pump Operator Hydraulics are listed here, newest first.
 
 ## [1.0.1] - 2026-10-29
 
+### Added
+- Basement floors −1 to −5 on the floor setting. Each floor below street level takes 5 psi off.
+
 ### Changed
 - Nozzle elevation wheel moves in 5 ft steps instead of 1 ft. Saved values snap to the nearest 5 ft.
 

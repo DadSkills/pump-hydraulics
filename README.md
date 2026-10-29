@@ -38,7 +38,7 @@ Open it once with a connection. After that it works offline.
 - **Smooth bore flow:** GPM = 29.7 × d² × √NP, where d is the tip diameter in inches
 - **Nozzle pressure:** fog 100 psi (low-pressure fog 75 or 50), smooth bore handline 50, smooth bore master stream 80
 - **Appliances:** 0 psi under 350 gpm, 10 psi at 350 gpm or more. Master stream devices 25 psi. Standpipe systems 25 psi.
-- **Elevation:** 0.5 psi per foot, or 5 psi per floor above the first
+- **Elevation:** 0.5 psi per foot, or 5 psi per floor above the first. Basement floors −1 to −5 take 5 psi off per floor.
 
 ### Standard friction loss coefficients
 | Hose | C |

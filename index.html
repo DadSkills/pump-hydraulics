@@ -341,7 +341,7 @@ input:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px;bord
 
         <article class="qcard">
           <h2>Elevation pressure</h2>
-          <p class="qsub">0.5 psi per foot of height, or 5 psi per floor above the first.</p>
+          <p class="qsub">0.5 psi per foot of height, or 5 psi per floor above the first. Basement floors take 5 psi off per floor.</p>
           <div class="fields">
             <div class="field s2"><label for="q-el-v">Nozzle elevation</label>
               <div class="with-unit">
@@ -423,7 +423,7 @@ input:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px;bord
               <li><b>Smooth bore flow</b>: <code>GPM = 29.7 × d² × √NP</code>, rounded to the whole gallon before friction loss is figured.</li>
               <li><b>Nozzle pressure</b>: fog 100 psi (low-pressure fog 75 or 50), smooth bore handline 50, smooth bore master stream 80.</li>
               <li><b>Appliances</b>: 0 psi under 350 gpm, 10 psi at 350 gpm or more. Master stream devices 25 psi at any flow. Standpipe systems 25 psi.</li>
-              <li><b>Elevation</b>: 0.5 psi per foot, or 5 psi per floor above the first. Nozzles below the pump give a negative value.</li>
+              <li><b>Elevation</b>: 0.5 psi per foot, or 5 psi per floor above the first. Nozzles below the pump, including basement floors −1 to −5, give a negative value.</li>
               <li><b>Wyed lines</b>: pump to the line that needs the most pressure and gate the others down at the wye.</li>
               <li><b>Siamesed lines</b> of equal length: use the siamese coefficient with the total flow.</li>
             </ul>
@@ -573,8 +573,9 @@ function tipFlow(d, np){ return Math.round(29.7 * d * d * Math.sqrt(np)); }
 function elevCalc(b){
   let v = num(b.elevV); if (!Number.isFinite(v)) v = 0;
   if (b.elevU === 'floor'){
-    const fl = Math.max(1, Math.round(v));
+    let fl = Math.round(v); if (fl === 0) fl = 1;
     const per = rule('epFloor');
+    if (fl < 0) return {p: per * fl, math: `${fg(per)} × ${Math.abs(fl)} floor${fl === -1 ? '' : 's'} below street level`};
     return {p: per * (fl - 1), math: `${fg(per)} × (${fl} − 1) floors`};
   }
   const per = rule('epFt');
@@ -801,7 +802,7 @@ function updateCards(){
       card.querySelector('[data-show="np"]').hidden = kind !== 'custom';
       card.querySelector('[data-show="flow"]').hidden = kind === 'sb';
       $(`#${L}-${k}-ehint`).textContent = b.elevU === 'floor'
-        ? 'Floor the nozzle is on. Floor 1 is street level.'
+        ? 'Floor the nozzle is on. Floor 1 is street level; negative floors are basements.'
         : 'Height of the nozzle above the pump. Below the pump is negative.';
     }
   }
@@ -811,7 +812,7 @@ function updateCards(){
   });
   $('#master-supplywrap').hidden = state.master.device !== 'monitor';
   $('#master-jointname').textContent = state.master.device === 'monitor' ? 'Master stream appliance' : 'Deck gun piping and appliance';
-  $('#q-el-hint').textContent = quick.elev.elevU === 'floor' ? 'Floor the nozzle is on. Floor 1 is street level.' : 'Height of the nozzle above the pump.';
+  $('#q-el-hint').textContent = quick.elev.elevU === 'floor' ? 'Floor the nozzle is on. Floor 1 is street level; negative floors are basements.' : 'Height of the nozzle above the pump. Below the pump is negative.';
 }
 function setLayout(L){
   state.layout = L;
@@ -960,7 +961,7 @@ function fieldItems(kind, path){
     case 'elev': {
       const o = getPath(state, path.replace(/\.elevV$/, ''));
       return o.elevU === 'floor'
-        ? numItems(rangeOf(1, 100, 1), v => `Floor ${v}`)
+        ? numItems(rangeOf(-5, -1, 1).concat(rangeOf(1, 100, 1)), v => `Floor ${signed(v)}`)
         : numItems(rangeOf(-100, 300, 5), v => `${signed(v)} ft`);
     }
     case 'device': return [{v:'monitor', label:'Monitor, hose-fed'}, {v:'deckgun', label:'Deck gun, piped'}];
@@ -1205,7 +1206,10 @@ document.addEventListener('click', (e) => {
     const u = ub.dataset.unit;
     if (obj.elevU !== u){
       const v = num(obj.elevV);
-      if (Number.isFinite(v)) obj.elevV = u === 'floor' ? Math.max(1, Math.round(v / 10) + 1) : (Math.max(1, Math.round(v)) - 1) * 10;
+      if (Number.isFinite(v)){
+        if (u === 'floor'){ const f = Math.round(v / 10); obj.elevV = f >= 0 ? f + 1 : Math.max(-5, f); }
+        else { const f = Math.round(v) || 1; obj.elevV = f >= 1 ? (f - 1) * 10 : f * 10; }
+      }
       obj.elevU = u;
       if (r === 'state') WHEELS.filter(w => w.path === `${p}.elevV`).forEach(w => { buildWheelRows(w); positionWheel(w); });
       syncInputs(); updateCards(); renderAll(); save();
